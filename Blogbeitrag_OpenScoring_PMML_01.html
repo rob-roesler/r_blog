@@ -1,0 +1,244 @@
+<p>On November, the 27<sup>th,</sup> a special <a href="http://scottmutchler.blogspot.de/2012/11/openscoring-open-source-scoring-of-pmml.html">post</a> took my interest. Scott Mutchler presented a small framework for predictive analytics based on the <a href="http://www.dmg.org/v4-1/GeneralStructure.html">PMML</a> (Predictive Model Markup Language) and a Java-based REST-Interface. PMML is a XML based standard for the description and exchange of analytical models. The idea is that every piece of software which supports the corresponding PMML (newest version 4.1) version could utilize such a model description to predict outcomes regardless of the creation process. Using PMML offers some big advantages especially when using R for modeling with the final task to bring a model into production afterwards. Often the IT-staff is not willing to support yet another piece of software beside the legacy systems, particularly when there are no service agreements, 24/7 support or guaranteed ‘High Availability’. Also an analytical workflow, in which you can send your model right into production is one of the key points most commercial software vendors in the field of analytical software mention (e.g. <a href="http://www.revolutionanalytics.com/products/revolution-enterprise.php">Revolution Enterprise</a>, <a href="http://spotfire.tibco.com/">TIBCO Spotfire</a>, …). Scott Mutchler’s OpenScoring is a first draft for such a prediction engine and definitely worth to have an eye on it. While he created mainly the server side of the engine, my intention was to create some simple sketch for the client side, so that you can call the servlet engine from within R. Therefore two main functions have to be provided:</p>
+
+<ol>
+<li>Exporting a predictive model into XML</li>
+<li>Predicting a target variable, given a dataset and a model (specified in PMML)</li>
+</ol>
+
+<p>So the first step was to get the engine running. I experienced some small problems but Scott fixed them very fast and offered a new war file ready for deployment inside tomcat. It can be obtained under <a href="http://code.google.com/p/openscoring/">http://code.google.com/p/openscoring/</a>. If you still encounter some problems you could also try <a href="http://dl.dropbox.com/u/45974911/OpenScoring.war">my war file</a>. It was built with java version &ldquo;1.6.0_26&rdquo; and tested under <a href="http://tomcat.apache.org/download-70.cgi">tomcat 7</a>. After installing the war file using the management console, you could test it by sending a POST request in XML like the following to ‘<a href="http://localhost:8080/OpenScoring/Scoring">http://localhost:8080/OpenScoring/Scoring</a>’:</p>
+
+<pre><code>&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;scoring_request&gt;
+  &lt;pmml_url&gt;http://www.dmg.org/pmml_examples/knime_pmml_examples/IrisNeuralNet.xml
+  &lt;/pmml_url&gt;
+  &lt;model_name&gt;&lt;/model_name&gt;
+  &lt;csv_input_rows&gt;&lt;![CDATA[sepal_length,sepal_width,petal_length,petal_width|
+      5.1,3.5,1.4,0.2|7,3.2,4.7,1.4|6.3,2.9,5.6,1.8|]]&gt;
+  &lt;/csv_input_rows&gt;
+&lt;/scoring_request&gt;
+</code></pre>
+
+<p>A nice tool for first experiments is the <a href="https://addons.mozilla.org/en-us/firefox/addon/poster/">poster plugin</a> for Firefox.</p>
+
+<p>Now let’s turn to developing the client side. The implementation of the first mentioned functionality is pretty straight forward – build your model in the classical way and export it using the <a href="http://cran.r-project.org/web/packages/pmml/index.html">PMML</a> package. You can find the supported methods inside PMMLs documentation or <a href="http://rattle.togaware.com/pmml.html">here</a>. The following code shows a small example using decision trees and artificial data consisting only of numerical attributes (including target):</p>
+
+<pre><code class="r">require(ggplot2)  # for visualization
+require(pmml)  # for storing the model in xml
+require(rpart)  # use decision trees
+
+# ------------------------------------------------------- 
+# Example 1 - categorical target with numeric inputs
+# -------------------------------------------------------
+
+# create artificial dataset
+set.seed(1234)
+gX &lt;- rnorm(100, mean = 0, sd = 0.5)
+gY &lt;- rnorm(100, mean = 1, sd = 0.5)
+rX &lt;- rnorm(100, mean = 1, sd = 0.5)
+rY &lt;- rnorm(100, mean = 0, sd = 0.5)
+dataset &lt;- data.frame(X = c(gX, rX), Y = c(gY, rY), 
+    Col = c(rep(&quot;red&quot;, 100), rep(&quot;green&quot;, 100)))
+
+bp &lt;- ggplot(dataset, aes(X, Y, colour = Col)) + geom_point()
+bp + scale_colour_manual(name = &quot;Col&quot;, values = c(&quot;green&quot;, &quot;red&quot;), 
+        labels = c(&quot;GREEN&quot;,&quot;RED&quot;), breaks = c(&quot;green&quot;, &quot;red&quot;))
+</code></pre>
+
+<p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAkAAAAFoCAMAAACIU7TCAAAAolBMVEUAAAAAAGYAOpAAZrYA/wA6AAA6ADo6AGY6Ojo6OpA6ZrY6kNtmAABmADpmAGZmOpBmZmZmtv9/f39/f5V/f6t/lcF/q9aQOgCQOjqQtpCQ2/+Vweurf6ur1v+2ZgC2///BlX/BlavBwdbB6//Wq3/W///bkDrb/9vb///l5eXrwZXr///y8vL/AAD/tmb/1qv/25D//7b//9b//9v//+v////lCanVAAAACXBIWXMAAAsSAAALEgHS3X78AAAS+ElEQVR4nO2dC3fbNhKF3UbZbu1ud602aTcPJ2mdbJxYsZNY//+vrciRZD7wGHAw4EC897THjkzy8oqfMCAIUmdbCBLobO4dgOoWAIJEAkCQSAAIEgkAQSIBIEgkAASJBIAgkQAQJBIAgkQCQJBIAAgSCQBBIrEBuuGJu9xAt5PWKmpWZTRNdEgAyKYbAJIFN2hWZTRNdEgAyKYbAJIFN2hWZTRNdEgAyKYbAJIFN2hWZTRNdEgAyKYbAJIFN2hWZTRNdEgAyKYbAJIFN2hWZTRNdEgAyKYbAJIE32wKmrEFgFyyCNBmwyQIAMXMNNEhASC2AJBLbIBueeIuF9RmU9CMraJumcw00SFZbIHYQgsUM9NEhwSAbLoBIFlwg2ZVRtNEhwSAbLoBIFlwg2ZVRtNEhwSAbLoBIFlwg2ZVRtNEhwSAbLoBIFlwg2ZVRtNEhwSAbLoBIFlwg2ZVRtNEhwSAbLoBIFlwg2ZVRtNEhwSAbLoBIFlwg2ZVRtNEhwSAbLoBIFlwg2ZVRtNEhwSAbLoBIFlwg2ZVRtNEhwSAbLoBIFlwg2ZVRtNEhwSAbLoBIFlwg2ZVRtNEhwSAbLoBIFlwg2ZVRtNEh2QeoNBdzgAoZqaJDsk6QMH75AFQzEwTHRIAYgsAuWQdoKaEeRECQDEzTXRI5gEKNUIAKGamiQ4pBNDD2/X62WcANIfbSQB093y7vX49O0DSEjZaHQAVAqjRpwag9U76u6KkpgGbex9OWBGAmkaIVPaTk9FsXAHRAmVUGKDrIz/1AoQSpqpwJ/r14z/KBjdoVmU0dX6CAF03fZ+XcwCEp7SeBEA9lQzOfc4vAIqZaaJDAkBsASCXTAKEEgaAhMF54n6nRhYzAOTUvAAda9Wkd5n9lQgDAaCMmhWgzebAAADSMdNEh1QzQChhUTNNdEjzlzABQOhEx8w00SHN3YmW9IEAUNRMEx3S3AB5ghs0qzKaJjokAGTTDQDJgk81Y3WrAVBGnRZAvBN7AJRR8wPUHvJKAJoybgCASFrB6ZhrlDDv0Z4M0KSRSwBE0gqeF6DRhl0CQBk1O0BZS1h/u9kBQgkba36AnMFzmOUvYZMEgEhlgxs0qzKaJjokAGTTDQDJghs0qzKaJjqk0wXI3+EFQBl1sgAFTrkBUEYBoCxuAQEgUtngGcxQwm4AkCWzKqNpokNaLEDpg8rVROtuRl3FAXIfuOLv8oTLWgDIJTZAtzzFlmsOHHNTcrO8+yFwS1cmM010SKVbIM8nn/UxHa2ZegtI1wwlLI8qKmFj9pJvQuObOQSAXKqoE+0EiN+QACAVVQRQB5b9b2lTvPolLF0AyKWaADrqgE3ROYIAyKnKAXKXsAhUACijqgTosYR5/homCABlVH0AdeAAQDEzTXRItgByHPjhS106fGYoYcfNqMsUQI6mY/QSByCWWbIAkEtzPx+oG3zDAYhRwmLiH9KeNwByafYnlHWCO/suc35nan+HAJBLlgBKvj4FgGJmmuiQbJQwPzlBplDCYmaa6JBMdKL9593hM3KHGaMRm/hoTgDk1IkBxLi0MfXhwADIKRMA5SthAGiwGXXNB1DvMKYc0+OyrpVQwvqbUddsAPUaAk+r4Hlx//LkpgQDiRllGaD2Vf/QIgCKm2miQ7Jcwjabx+9CcC07tRYBoIyaC6DBwXe/y20DFMAE18JiZprokGYCaMiF/11mA8Rvj/QAWq1yuQGgsMYATRkJ2jKXG0gNoNXKQRAAImUOPixh3uMPgFK0HICGwX3nYcHSFChhoaFJlLCMsgKQswXxUxUzm3pxJCR0ol2yDJDrHL5HAACKmWmiQyoKUPCZT0x+eABFS9gEigCQSyUBCnz4Xe/yYXH/nNYp7/Ju7dtp7RAAcikM0LdX7w+/ZgieCNDNgR/vWhPe5WZrACijggDdrX/PCVC4hPlXOl77SjLzby1rCYtuaMEAPfz18K4FaL2T/q5sN5vQy82hVzOZvOnVKste1atwCdsD1Ej/kxMpK46WKFtRGVm7BnRcbs3QYaQJWnALZAugw995Z2ExM+emj3IOKfsASnY7rhtYCwBNCB7rTtBh1gBoaM0GKEyBz83vETaLa9kAdRUYARqVsNQOMaOocEuYwG0RAHXETJAQvHvch8E7zUxv4qLLLPmU3Mh8oCWUsI6YCVJmJHaOux+g+NV4DYBcW8Q4kEtGAerOW41O58hfwpym+Ye4AgJAcYVKmGex6WZdKQCUOsge1bIA6rx5WsfUeXwy99gDva2YGwCKKrDX3XcvJXiohAUsOm9PgllHng5XrC+FEuaSGkDxjkl3NZMADU6TJrmtVreOTcW1KIBcJYxxatSd7zOhhO1e0SthjYYDNVPc9ttgDFgPtCyAHME559YpADlXztnhGh9hAMSR2lkY59yaX8Jc6w4BEt2V4TrEKGEMSQAqN9rmmVs/uCuDSxAXoIEwkOiSAKD00TZ+8LhT80pGgBhthDuac73uiwCINN7ZWQFqX8pVwngFxnM13rFy70UARHLs7ZwlzAHQZDNmF/cEALp/enZ2cfj9Hy/mBkgxeFfuloVxFuZrknICVFUJu3962f5/egCFqo+vbxPt83gXyFnC4jIE0IcfP7Y/r87OnpwUQEEWCgDEU/0AXRFAX3548/WXi8UA5G2espUwpuoHaN8CNT+unpwSQFPu0pputlyA9n2g02uBwk8oK2gWNB66Uc9p+l0ZQamehZ1cHyjwLgerm8cs1p6xDunYeOBG527xMzhLACmoRoAit/X0VnHBlAOg1coD0IgnAETSDB56aJhnDDFg1j30zgZsPA7ksgyWsAM/o5XHLRIAIikG95ap2Pl7vIRxAGqPeeew+3ZnCJDTez6AWt8IQLcDnThA/tf5ZowStlo9tich20EJ8xjOVcIowTIB8pWw6FBhotlha44S1ms4PK62T+MXDZDvXY6dTqWZHXl0zweKrs9yG28HJWw+gPKaDQHSmGXq6BtZ6kTPCdDQ2yPucn7t6hlXiWabzWr1+K/mWCetznEbbjTRIs2Msxk7AJX65KTc6Z5qtm8fbrv/CC09wa2/UstTwg4mmo3FaoEeqd699P2Ps7Ozy3aMuhmebn6cXR5+/PRmu726NAVQ9AJ5MYBiJWwE2IRjahKgTivZ8LPj4+u/Xtyf737/88X9z+3l1sOPf54nAfT13x+1AfLhUQagPTO3/X96l81wV8ZuE7YB+vKE/uIG6PzDZVILdP/0iQmAuAgJ3+VIEZtUwvxuaSpVwr5ctEXsslvCfnhz+HH+9dc3aSXsy5lv8UzB43O8EgjSBSizG0Od3Sl1FkYt0IfLXQvUFKBhC7T7e2If6OsvLXtqAHGC9y9mZTTbHyBeCRO77cUHqAt0KYC+/3HRdoSaEraDaQTQ9srbpLgA2rVmyi0QK3jkYuhUs8MBsjqhbA6A2slBzVnYefPrBZ1+HX+cNy1KAkBXZ9p9IG7wgxYF0BwlTKzCZ2Hc4EeplrA0nUwn+rQHElOEOdExMwBkx6zKaADIjlmV0TIQEhEAcsl5fr/1/iXilr4OWiBp8HnN3COMW+9fwm7JV20PZhO0TIA2mwoAWq20AOJ/swvDbLiZJQDUjPXoA5TwwBU3P8z7CEeKljAAJAxeBKDuUYqYxR/5k6RpPS4AlKASJUwK0L6ETZClszDC5nHO59Y1kSx86cIiQI7g+c2SSpjYrSNzALUt/hGg/jyg83Z2mTGAOHMzbHWiE9ymf2PhBLO4MgC0/XAxPvpzAsSa3WOqBToszpiRyOgamQPIW8KaGWTbdo4ZABopoQ90WHwIx8kA1O1EDyaStS1QUidoKSVMCaDxsxVGS5gHqDuRrOkD/eqYTjgrQFOC5zfLVcLSJuIz3cYqCdBgIhnOwrqa/Hwgj1u4ZtUHkFgnDhDr+UApbgl3coimrwEgWfBcZkyAEh40zh6Qlk2gBUCy4NnMWCWMd52CF+24JQCkBVC+bkkuWjMC1NmUwRKmoPIAZeyWZGvupnxXhu+SK56R+Kjr9W9/LwKgFLc9IC5WXK8tGaC7Z593/+UGSLuEaV2dOnaiDxODxrQ4Xlg0QJ9ebr+9er/7Zb2T/q7kUXMQ9bbd2f6eoNEChfbFioIAvd4+vHu//0fZT850M7WrUzctD81TzjpOsVEhY493KQ3QoQWqCSDFEkYAbfYurstlrn1ZMEBKfSBO8HSzhBmnaWbHDW9vWn429CLBw3BdMEA6Z2Gs4MlmKXOWk8weN9y6NfzsnyvNNFwyQF2VDZ5sVgCgx5+8pmeK21EASBY83Uy9hB1JCrDq+gMAIuUO3n+vKxhIHDdF/kW6SwAgUubgg49xBQAx2rjuIKPQDQBFVCFAQzfntbD9DwA0Uu7g1ZUwx8VUb5OEEjZW2eAGzVIAkrsBIFlwg2acEpbmFtoAAJIFN2jWXMrI6hZswgCQLPicZr7D2jvgGQYSAZBicG2zwKHzHtfuHxJGo5NKWOfCW2RJnpkmOqRlAhQ+g/I9naPXALGvhqVEG1x4i+5S1EwTHRIAGn28fY8i61846QAUProAiMR8C+oA6GbQmIyXcbw6OKbuYUOnG18oYZUA1NE0gFyLug8zxoFIZYOXNHMe9xBA7prXuRIWcmMKAMmCz2/m7wP5Stb+9f6fbX1nqoIqBOjxtqB5biwMnOeP/pwyz81pligAFFfnxsSZbm2OLNxvgEKDPRyzNAGguDwASWYkJgI0WjuwkqOEsdwAkCx4SM4SJpsTPeXe+KGzbxsAiMRMcHKT6p1uXTn7zkE3XnM3qfMEgJLUL2Ghh3lmmP4YKWEJALHMpnW/AVCSumbBpwn3j4bOfCB2CeOZASBR8Alm4QYoP0DaMxJRwiTBc5splDDPGfroNQwkksoGN2jGuytjTBAAIpUNbtCM4waA/Bo+4NMj7nJZVNSM5bbjp5wZZzPqQgtk0+30WqCywQ2aVRlNEx3SwgBqeygAKKOWBRD1cQFQRgEgPTcSACKVDa5lhhKWWwsDSGBWZTRNdEgAKKD+oGCN0TTRIQEgvwbDyjVG00SHBID8AkAMAaCAUMLiAkA23QCQLLhBsyqjaaJDAkA23QCQLLjMLDIb1C5AjzsOgGTBRWax2cpmAersOACSBReZ+Z9+IDGTRmNMkgdANgDyHKvj4ZkFINZNHChhNgByqwKAcpk9bkZdCwLIfgnLZ3bcjLqWBJDMrMpomuiQAJBNNwAkC27QrMpomuiQAJBNNwAkC27QrMpomuiQlgfQ1OemVhANACVqitnk56baj+Yw00SHBIBU3W4A0EFlgyuaoYRl1fIAQic6q8IAfXv1/vBr2eAGzaqMps5PGKC79e8AaB63kwDo4a+Hdy1A6530dwWqUeEStgeoUdlPjkGzKqOp8+MH6Hr9HADN51Y/QK0A0FxuAEgW3KBZldHU+cE4kFE3ACQLbtCsymia6JAAkE03ACQLbtDMfxeahhsAkgU3aOZ2c325QQ43ACQLbtDM6bYCQNwFywY3aOYHSMMNAMmCGzTzlTAdNwAkC27QrMpomuiQAJBNNwAkC27QrMpomuiQAJBNNwAkC27QrMpomuiQAJBNNwAkC27QrMpomuiQAJDcTeORngBIFtygmdctMhgNgEhlgxs0A0BOASC5G0oYR2WDGzSrMpomOiQAZNMNAMmCGzSrMpomOiQAZNMNAMmCGzSrMpomOiQAZNMNAMmCGzSrMpomOiQAZNMNAMmCGzSrMpomOiQ2QLc8cZfLoqJmVUbTRIeEFsim2+m1QGWDGzSrMpomOiQAZNMNAMmCGzSrMpomOiQAZNMNAMmCGzSrMpomOiQAZNMNAMmCGzSrMpomOiQAZNMNAMmCGzSrMpomOiQAlO6W9o11AIhUNrhBs6Nb4nceAiBS2eAGzQCQUwAo3Q0lrCMAZNMNAMmCGzSrMpomOiQAZNMNAMmCGzSrMpomOiQAZNMNAMmCGzSrMpomOiQAZNMNAMmCGzSrMpomOiQAZNMNAMmCGzSrMpomOiQAZNMNAMmCGzSrMpomOiQ2QEytM2/PjtkpRxMIANl0A0AlBIDmFwCy6bZYgKCFCQBBIgEgSCQABIkEgCCRcgP07dX7zFv06nr929+lvLZFkz28Xa+ffS7lJlNmgO7Wv5d6m++efb4r+C4XTLa9e777eLwu5SZTXoAe/np4V+pt/vSyaKNQMFmrT4sEaPdGlwPodUGzbclkjZpGqAplBOh6/bwoQEVboMIAXdfCT8UtUOE+UEmAHt5WUr+2NQNU+iysaLKdXpZykwnjQJBIAAgSCQBBIgEgSCQABIm0dIA+/Phxu726mHs36tXSAdpeXW7vf/44917Uq8UDdP/z//58MfdOVKzFA7T98B8UMIEA0P3Ty7l3oWYtHqDvf/4XXSCBFg/Qlyc4CZNo6QB9/fXN9v6nN3PvRr1aOEDf/2han3YwCJqkhQMESQWAIJEAECQSAIJEAkCQSAAIEgkAQSIBIEgkAASJBIAgkf4PIOvvscuhWWsAAAAASUVORK5CYII=" alt="plot of chunk unnamed-chunk-1"/> </p>
+
+<pre><code class="r">
+# create decision tree model
+treeModel &lt;- rpart(Col ~ ., data = dataset)
+
+## export as pmml
+# place to store the xml file
+localFilenameAndPath = &quot;/tmp/treeModel_numericalInput_categTarget.xml&quot;  
+# save model using pmml
+saveXML(pmml(treeModel, model.name = &quot;TreeModel&quot;, app.name = &quot;RR/PMML&quot;, 
+     dataset = dataset), file = localFilenameAndPath) 
+</code></pre>
+
+<p>Most effort goes into developing the predict function. We should first transform the input data frame and split it into strings where every string represents one row in the data frame (including the header as one string). The fields have to be comma delimited. After that, all strings are combined into one string separated by the pipe (‘|’) symbol. 
+The second step is creating the XML structure consisting of at least the main (<code>&lt;scoring_request&gt;</code>) and two subordinated nodes (<code>&lt;pmml_url&gt;</code> and <code>&lt;csv_input_rows&gt;</code>). The node <code>&lt;pmml_url&gt;</code> includes the url with schema ‘http://’, ‘file://’ or ‘ftp://’ and points to the place of your model. The node <code>&lt;csv_input_rows&gt;</code> contains the data formatted like mentioned above, wrapped inside a <em>CDATA</em> node. Last but not least the whole XML document needs to be transformed into a string.
+As a third we send the POST-Request to the server using <em>curlPerform</em> from the <a href="http://cran.r-project.org/web/packages/RCurl/index.html">RCurl</a> package:
+Last part will be to extract the results from the server response. The format is the same like in the request but it contains the predictions in one additional column. So using a combination of <em>strsplit</em>, <em>gsub</em> and <em>sapply</em> will get the job done. Because of that the prediction is always given as a character we need to convert it properly. Therefore the user has to specify a proper transformation function as input to the prediction function.</p>
+
+<pre><code class="r">predictPMMLModel &lt;- function(dataset,   # dataset for prediction 
+        transformTargetAttribute,       # type of target attribute
+        modelURL,                       # place where the scoring 
+                                        # engine could find the pmml model
+        applServerURL                   # servlet url
+){
+    require(XML)
+    require(RCurl)
+
+    header &lt;- paste(colnames(dataset), collapse=&quot;,&quot;) # extract header
+    # transformation to characters is necessary to avoid some “bad surprise” 
+    # from R&#39;s handling of factor attributes
+    datasetTransf &lt;- data.frame(lapply(dataset, as.character), 
+            stringsAsFactors=FALSE)
+    dataString &lt;- paste(header,&quot;|&quot;, paste(do.call(&quot;rbind&quot;,
+                            by(datasetTransf, 1:nrow(datasetTransf), function(row){
+                                        paste(row, collapse=&quot;,&quot;)
+                                    }, simplify = FALSE)), collapse =&quot;|&quot;), 
+                            &quot;|&quot;, sep = &quot;&quot;)
+
+    # create xml document
+    xmlHeader &lt;- xmlPINode(sys = &#39;xml&#39;, value = &#39;version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;&#39;)
+    xmlRequest &lt;- xmlNode(&quot;scoring_request&quot;, 
+            xmlNode(&quot;pmml_url&quot;, modelURL), 
+            xmlNode(&quot;model_name&quot;),
+            xmlNode(&quot;csv_input_rows&quot;,xmlCDataNode(dataString)))
+
+    # xml request as string
+    fullXMLRequest &lt;- paste(toString(xmlHeader),&quot;\n&quot;, 
+        gsub(&quot; &quot;, &quot;&quot;, toString(xmlRequest, sep=&quot;&quot;), fixed = TRUE))
+
+    # http post request
+    r = dynCurlReader()
+    curlPerform(postfields = fullXMLRequest, url = applServerURL, 
+            verbose = TRUE, post = 1L, writefunction = r$update)
+    r$value()
+
+    # parse results - !!caution: currently no error checking!!
+    tmp &lt;- xmlTreeParse(r$value())
+    predictionString &lt;- xmlValue(tmp[[1]][[1]][[4]])
+    # extract predictions line by line
+    predictionLines 
+     &lt;- strsplit(predictionString, split =&quot;|&quot;, fixed = TRUE)[[1]][-1]
+    predictions &lt;- transformTargetAttribute(sapply(predictionLines, function(s){
+                        gsub(&#39;\&quot;&#39;,&#39;&#39;,
+        tail(strsplit(s, &#39;,&#39;, fixed = TRUE)[[1]], n=1))
+                    }))
+    names(predictions) &lt;- NULL
+    return(predictions)
+}
+</code></pre>
+
+<p>Calling the final prediction function then is straightforward and the given examples show some cases with different combinations of categorical/numeric input/target attributes. Simple results for the training error are also given:</p>
+
+<pre><code class="r"># prediction
+prediction1 &lt;- predictPMMLModel(dataset = dataset, 
+    transformTargetAttribute = factor, 
+    modelURL = paste(&quot;file://&quot;, localFilenameAndPath, sep = &quot;&quot;), 
+    applServerURL = &quot;http://localhost:8080/OpenScoring/Scoring&quot;)
+table(dataset$Col, prediction1)  # tabulate results
+
+# ------------------------------------------------------- 
+# Example 2 - categorical target with mixed inputs
+# -------------------------------------------------------
+
+# create artificial dataset
+set.seed(1234)
+gX &lt;- factor(sample(c(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;), size = 100, replace = TRUE, 
+   prob = c(0.7, 0.2, 0.1)))
+gY &lt;- rnorm(100, mean = 1, sd = 0.5)
+rX &lt;- factor(sample(c(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;), size = 100, replace = TRUE, 
+   prob = c(0.1, 0.2, 0.7)))
+rY &lt;- rnorm(100, mean = 0, sd = 0.5)
+
+# http://stackoverflow.com/questions/8229904/r-combining-two-factors
+dataset &lt;- data.frame(X = unlist(list(gX, rX)), Y = c(gY, rY), 
+   Col = c(rep(&quot;red&quot;, 100), rep(&quot;green&quot;, 100)))
+
+bp &lt;- ggplot(dataset, aes(X, Y, colour = Col)) + geom_point()
+bp + scale_colour_manual(name = &quot;Col&quot;, values = c(&quot;green&quot;, &quot;red&quot;), 
+   labels = c(&quot;GREEN&quot;, &quot;RED&quot;), breaks = c(&quot;green&quot;, &quot;red&quot;))
+</code></pre>
+
+<p><img src="data:image/png;base64,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" alt="plot of chunk unnamed-chunk-3"/> </p>
+
+<pre><code class="r">
+# create decision tree model
+treeModel &lt;- rpart(Col ~ ., data = dataset)
+
+# export as pmml
+localFilenameAndPath = &quot;/tmp/treeModel_mixedInput_categTarget.xml&quot;
+saveXML(pmml(treeModel, model.name = &quot;TreeModel&quot;, app.name = &quot;RR/PMML&quot;, 
+    dataset = dataset), file = localFilenameAndPath)
+# prediction
+prediction2 &lt;- predictPMMLModel(dataset = dataset, 
+    transformTargetAttribute = factor, 
+    modelURL = paste(&quot;file://&quot;, localFilenameAndPath, sep = &quot;&quot;), 
+    applServerURL = &quot;http://localhost:8080/OpenScoring/Scoring&quot;)
+
+table(dataset$Col, prediction2)  # tabulate results
+
+# ----------------------------------------------- 
+# Example 3 - numerical target with mixed input 
+# -----------------------------------------------
+
+# create artificial dataset
+set.seed(1234)
+gX &lt;- factor(sample(c(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;), size = 100, replace = TRUE, 
+   prob = c(0.7, 0.2, 0.1)))
+gY &lt;- rnorm(100, mean = 1, sd = 0.5)
+rX &lt;- factor(sample(c(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;), size = 100, replace = TRUE, 
+   prob = c(0.1, 0.2, 0.7)))
+rY &lt;- rnorm(100, mean = 0, sd = 0.5)
+
+dataset &lt;- data.frame(X = unlist(list(gX, rX)), Y = c(gY, rY), 
+   Col = c(rnorm(100, mean = -5, sd = 1), rnorm(100, mean = 5, sd = 1)))
+
+bp &lt;- ggplot(dataset, aes(X, Y, colour = Col)) + geom_point()
+bp
+</code></pre>
+
+<p><img src="data:image/png;base64,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" alt="plot of chunk unnamed-chunk-3"/> </p>
+
+<pre><code class="r">
+# create decision tree model
+treeModel &lt;- rpart(Col ~ ., data = dataset)
+
+# export model as pmml
+localFilenameAndPath = &quot;/tmp/treeModel_mixedInput_numTarget.xml&quot;
+saveXML(pmml(treeModel, model.name = &quot;TreeModel&quot;, app.name = &quot;RR/PMML&quot;, 
+   dataset = dataset), file = localFilenameAndPath)
+# prediction
+prediction3 &lt;- predictPMMLModel(dataset = dataset, 
+   transformTargetAttribute = as.numeric, 
+   modelURL = paste(&quot;file://&quot;, localFilenameAndPath, sep = &quot;&quot;), 
+   applServerURL = &quot;http://localhost:8080/OpenScoring/Scoring&quot;)
+
+modelResults &lt;- data.frame(Y = dataset$Col, Y_hat = prediction3)
+cor(modelResults$Y, modelResults$Y_hat)^2  # computing r squared
+
+# ----------------------------------------------- 
+# Example 4 - numerical target with numerical input
+# -----------------------------------------------
+
+# create first artificial dataset
+set.seed(1234)
+gX &lt;- rnorm(100, mean = 0, sd = 0.5)
+gY &lt;- rnorm(100, mean = 1, sd = 0.5)
+rX &lt;- rnorm(100, mean = 1, sd = 0.5)
+rY &lt;- rnorm(100, mean = 0, sd = 0.5)
+dataset &lt;- data.frame(X = c(gX, rX), Y = c(gY, rY), 
+   Col = c(rnorm(100, mean = -5, sd = 1), rnorm(100, mean = 5, sd = 1)))
+
+bp &lt;- ggplot(dataset, aes(X, Y, colour = Col)) + geom_point()
+bp
+</code></pre>
+
+<p><img src="data:image/png;base64,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" alt="plot of chunk unnamed-chunk-3"/> </p>
+
+<pre><code class="r">
+# create decision tree model
+treeModel &lt;- rpart(Col ~ ., data = dataset)
+
+# export model as pmml
+localFilenameAndPath = &quot;/tmp/treeModel_numericalInput_numTarget.xml&quot;
+saveXML(pmml(treeModel, model.name = &quot;TreeModel&quot;, app.name = &quot;RR/PMML&quot;, 
+   dataset = dataset), file = localFilenameAndPath)
+# prediction
+prediction4 &lt;- predictPMMLModel(dataset = dataset, 
+   transformTargetAttribute = as.numeric, 
+   modelURL = paste(&quot;file://&quot;, localFilenameAndPath, sep = &quot;&quot;), 
+   applServerURL = &quot;http://localhost:8080/OpenScoring/Scoring&quot;)
+
+modelResults &lt;- data.frame(Y = dataset$Col, Y_hat = prediction4)
+cor(modelResults$Y, modelResults$Y_hat)^2  # computing r squared
+</code></pre>
+
+<p>Finally, here are some thoughts about what has been build. We should begin with a contra-point, which is the fact that PMML (at the moment) restricts you to use some standard modeling techniques (depending on the PMML version and the implementation of the used software for modeling and prediction). I know some projects where this would be a serious concern. But on the other side I think that a lot of analytic questions will be fine with the offered portfolio of approaches – looking at my own projects it may be 50 to 70 percent. 
+On the pro-side there are a lot more things to mention. First, even if restricted to some standard models, you could use the full power of R to build your model, to try experiments with it, to optimize and tweak it and to visualize the results. Second, developer and user no longer need to use the same kind of software – the server/client could be written in any language able to understand XML and PMML (only the server if the client is not used for modeling) and on how to communicate with web services. Third, like mentioned at the beginning of the post, you now could utilize “enterprise-proven” software (Tomcat) to run your model. This really is one of the points which matters in practice (“… thanks for your nice prototype, but we should now have to bring it to java/c#/… “). Although there are some limitation, I think there are even more positive aspects (e.g. Documentation, versioning of models) and I am really interested about any complementary and helpful comments.</p>
