@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<!-- saved from url=(0014)about:internet -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+
+<title>The Wisdom of Crowds - Clustering Using Evidence Accumulation Clustering (EAC)</title>
+
+<style type="text/css">
+body, td {
+   font-family: sans-serif;
+   background-color: white;
+   font-size: 12px;
+   margin: 8px;
+}
+
+tt, code, pre {
+   font-family: 'DejaVu Sans Mono', 'Droid Sans Mono', 'Lucida Console', Consolas, Monaco, monospace;
+}
+
+h1 { 
+   font-size:2.2em; 
+}
+
+h2 { 
+   font-size:1.8em; 
+}
+
+h3 { 
+   font-size:1.4em; 
+}
+
+h4 { 
+   font-size:1.0em; 
+}
+
+h5 { 
+   font-size:0.9em; 
+}
+
+h6 { 
+   font-size:0.8em; 
+}
+
+a:visited {
+   color: rgb(50%, 0%, 50%);
+}
+
+pre {	
+   margin-top: 0;
+   max-width: 95%;
+   border: 1px solid #ccc;
+   white-space: pre-wrap;
+}
+
+pre code {
+   display: block; padding: 0.5em;
+}
+
+code.r, code.cpp {
+   background-color: #F8F8F8;
+}
+
+table, td, th {
+  border: none;
+}
+
+blockquote {
+   color:#666666;
+   margin:0;
+   padding-left: 1em;
+   border-left: 0.5em #EEE solid;
+}
+
+hr {
+   height: 0px;
+   border-bottom: none;
+   border-top-width: thin;
+   border-top-style: dotted;
+   border-top-color: #999999;
+}
+
+@media print {
+   * { 
+      background: transparent !important; 
+      color: black !important; 
+      filter:none !important; 
+      -ms-filter: none !important; 
+   }
+
+   body { 
+      font-size:12pt; 
+      max-width:100%; 
+   }
+       
+   a, a:visited { 
+      text-decoration: underline; 
+   }
+
+   hr { 
+      visibility: hidden;
+      page-break-before: always;
+   }
+
+   pre, blockquote { 
+      padding-right: 1em; 
+      page-break-inside: avoid; 
+   }
+
+   tr, img { 
+      page-break-inside: avoid; 
+   }
+
+   img { 
+      max-width: 100% !important; 
+   }
+
+   @page :left { 
+      margin: 15mm 20mm 15mm 10mm; 
+   }
+     
+   @page :right { 
+      margin: 15mm 10mm 15mm 20mm; 
+   }
+
+   p, h2, h3 { 
+      orphans: 3; widows: 3; 
+   }
+
+   h2, h3 { 
+      page-break-after: avoid; 
+   }
+}
+
+</style>
+
+<!-- Styles for R syntax highlighter -->
+<style type="text/css">
+   pre .operator,
+   pre .paren {
+     color: rgb(104, 118, 135)
+   }
+
+   pre .literal {
+     color: rgb(88, 72, 246)
+   }
+
+   pre .number {
+     color: rgb(0, 0, 205);
+   }
+
+   pre .comment {
+     color: rgb(76, 136, 107);
+   }
+
+   pre .keyword {
+     color: rgb(0, 0, 255);
+   }
+
+   pre .identifier {
+     color: rgb(0, 0, 0);
+   }
+
+   pre .string {
+     color: rgb(3, 106, 7);
+   }
+</style>
+
+<!-- R syntax highlighter -->
+<script type="text/javascript">
+var hljs=new function(){function m(p){return p.replace(/&/gm,"&amp;").replace(/</gm,"&lt;")}function f(r,q,p){return RegExp(q,"m"+(r.cI?"i":"")+(p?"g":""))}function b(r){for(var p=0;p<r.childNodes.length;p++){var q=r.childNodes[p];if(q.nodeName=="CODE"){return q}if(!(q.nodeType==3&&q.nodeValue.match(/\s+/))){break}}}function h(t,s){var p="";for(var r=0;r<t.childNodes.length;r++){if(t.childNodes[r].nodeType==3){var q=t.childNodes[r].nodeValue;if(s){q=q.replace(/\n/g,"")}p+=q}else{if(t.childNodes[r].nodeName=="BR"){p+="\n"}else{p+=h(t.childNodes[r])}}}if(/MSIE [678]/.test(navigator.userAgent)){p=p.replace(/\r/g,"\n")}return p}function a(s){var r=s.className.split(/\s+/);r=r.concat(s.parentNode.className.split(/\s+/));for(var q=0;q<r.length;q++){var p=r[q].replace(/^language-/,"");if(e[p]){return p}}}function c(q){var p=[];(function(s,t){for(var r=0;r<s.childNodes.length;r++){if(s.childNodes[r].nodeType==3){t+=s.childNodes[r].nodeValue.length}else{if(s.childNodes[r].nodeName=="BR"){t+=1}else{if(s.childNodes[r].nodeType==1){p.push({event:"start",offset:t,node:s.childNodes[r]});t=arguments.callee(s.childNodes[r],t);p.push({event:"stop",offset:t,node:s.childNodes[r]})}}}}return t})(q,0);return p}function k(y,w,x){var q=0;var z="";var s=[];function u(){if(y.length&&w.length){if(y[0].offset!=w[0].offset){return(y[0].offset<w[0].offset)?y:w}else{return w[0].event=="start"?y:w}}else{return y.length?y:w}}function t(D){var A="<"+D.nodeName.toLowerCase();for(var B=0;B<D.attributes.length;B++){var C=D.attributes[B];A+=" "+C.nodeName.toLowerCase();if(C.value!==undefined&&C.value!==false&&C.value!==null){A+='="'+m(C.value)+'"'}}return A+">"}while(y.length||w.length){var v=u().splice(0,1)[0];z+=m(x.substr(q,v.offset-q));q=v.offset;if(v.event=="start"){z+=t(v.node);s.push(v.node)}else{if(v.event=="stop"){var p,r=s.length;do{r--;p=s[r];z+=("</"+p.nodeName.toLowerCase()+">")}while(p!=v.node);s.splice(r,1);while(r<s.length){z+=t(s[r]);r++}}}}return z+m(x.substr(q))}function j(){function q(x,y,v){if(x.compiled){return}var u;var s=[];if(x.k){x.lR=f(y,x.l||hljs.IR,true);for(var w in x.k){if(!x.k.hasOwnProperty(w)){continue}if(x.k[w] instanceof Object){u=x.k[w]}else{u=x.k;w="keyword"}for(var r in u){if(!u.hasOwnProperty(r)){continue}x.k[r]=[w,u[r]];s.push(r)}}}if(!v){if(x.bWK){x.b="\\b("+s.join("|")+")\\s"}x.bR=f(y,x.b?x.b:"\\B|\\b");if(!x.e&&!x.eW){x.e="\\B|\\b"}if(x.e){x.eR=f(y,x.e)}}if(x.i){x.iR=f(y,x.i)}if(x.r===undefined){x.r=1}if(!x.c){x.c=[]}x.compiled=true;for(var t=0;t<x.c.length;t++){if(x.c[t]=="self"){x.c[t]=x}q(x.c[t],y,false)}if(x.starts){q(x.starts,y,false)}}for(var p in e){if(!e.hasOwnProperty(p)){continue}q(e[p].dM,e[p],true)}}function d(B,C){if(!j.called){j();j.called=true}function q(r,M){for(var L=0;L<M.c.length;L++){if((M.c[L].bR.exec(r)||[null])[0]==r){return M.c[L]}}}function v(L,r){if(D[L].e&&D[L].eR.test(r)){return 1}if(D[L].eW){var M=v(L-1,r);return M?M+1:0}return 0}function w(r,L){return L.i&&L.iR.test(r)}function K(N,O){var M=[];for(var L=0;L<N.c.length;L++){M.push(N.c[L].b)}var r=D.length-1;do{if(D[r].e){M.push(D[r].e)}r--}while(D[r+1].eW);if(N.i){M.push(N.i)}return f(O,M.join("|"),true)}function p(M,L){var N=D[D.length-1];if(!N.t){N.t=K(N,E)}N.t.lastIndex=L;var r=N.t.exec(M);return r?[M.substr(L,r.index-L),r[0],false]:[M.substr(L),"",true]}function z(N,r){var L=E.cI?r[0].toLowerCase():r[0];var M=N.k[L];if(M&&M instanceof Array){return M}return false}function F(L,P){L=m(L);if(!P.k){return L}var r="";var O=0;P.lR.lastIndex=0;var M=P.lR.exec(L);while(M){r+=L.substr(O,M.index-O);var N=z(P,M);if(N){x+=N[1];r+='<span class="'+N[0]+'">'+M[0]+"</span>"}else{r+=M[0]}O=P.lR.lastIndex;M=P.lR.exec(L)}return r+L.substr(O,L.length-O)}function J(L,M){if(M.sL&&e[M.sL]){var r=d(M.sL,L);x+=r.keyword_count;return r.value}else{return F(L,M)}}function I(M,r){var L=M.cN?'<span class="'+M.cN+'">':"";if(M.rB){y+=L;M.buffer=""}else{if(M.eB){y+=m(r)+L;M.buffer=""}else{y+=L;M.buffer=r}}D.push(M);A+=M.r}function G(N,M,Q){var R=D[D.length-1];if(Q){y+=J(R.buffer+N,R);return false}var P=q(M,R);if(P){y+=J(R.buffer+N,R);I(P,M);return P.rB}var L=v(D.length-1,M);if(L){var O=R.cN?"</span>":"";if(R.rE){y+=J(R.buffer+N,R)+O}else{if(R.eE){y+=J(R.buffer+N,R)+O+m(M)}else{y+=J(R.buffer+N+M,R)+O}}while(L>1){O=D[D.length-2].cN?"</span>":"";y+=O;L--;D.length--}var r=D[D.length-1];D.length--;D[D.length-1].buffer="";if(r.starts){I(r.starts,"")}return R.rE}if(w(M,R)){throw"Illegal"}}var E=e[B];var D=[E.dM];var A=0;var x=0;var y="";try{var s,u=0;E.dM.buffer="";do{s=p(C,u);var t=G(s[0],s[1],s[2]);u+=s[0].length;if(!t){u+=s[1].length}}while(!s[2]);if(D.length>1){throw"Illegal"}return{r:A,keyword_count:x,value:y}}catch(H){if(H=="Illegal"){return{r:0,keyword_count:0,value:m(C)}}else{throw H}}}function g(t){var p={keyword_count:0,r:0,value:m(t)};var r=p;for(var q in e){if(!e.hasOwnProperty(q)){continue}var s=d(q,t);s.language=q;if(s.keyword_count+s.r>r.keyword_count+r.r){r=s}if(s.keyword_count+s.r>p.keyword_count+p.r){r=p;p=s}}if(r.language){p.second_best=r}return p}function i(r,q,p){if(q){r=r.replace(/^((<[^>]+>|\t)+)/gm,function(t,w,v,u){return w.replace(/\t/g,q)})}if(p){r=r.replace(/\n/g,"<br>")}return r}function n(t,w,r){var x=h(t,r);var v=a(t);var y,s;if(v){y=d(v,x)}else{return}var q=c(t);if(q.length){s=document.createElement("pre");s.innerHTML=y.value;y.value=k(q,c(s),x)}y.value=i(y.value,w,r);var u=t.className;if(!u.match("(\\s|^)(language-)?"+v+"(\\s|$)")){u=u?(u+" "+v):v}if(/MSIE [678]/.test(navigator.userAgent)&&t.tagName=="CODE"&&t.parentNode.tagName=="PRE"){s=t.parentNode;var p=document.createElement("div");p.innerHTML="<pre><code>"+y.value+"</code></pre>";t=p.firstChild.firstChild;p.firstChild.cN=s.cN;s.parentNode.replaceChild(p.firstChild,s)}else{t.innerHTML=y.value}t.className=u;t.result={language:v,kw:y.keyword_count,re:y.r};if(y.second_best){t.second_best={language:y.second_best.language,kw:y.second_best.keyword_count,re:y.second_best.r}}}function o(){if(o.called){return}o.called=true;var r=document.getElementsByTagName("pre");for(var p=0;p<r.length;p++){var q=b(r[p]);if(q){n(q,hljs.tabReplace)}}}function l(){if(window.addEventListener){window.addEventListener("DOMContentLoaded",o,false);window.addEventListener("load",o,false)}else{if(window.attachEvent){window.attachEvent("onload",o)}else{window.onload=o}}}var e={};this.LANGUAGES=e;this.highlight=d;this.highlightAuto=g;this.fixMarkup=i;this.highlightBlock=n;this.initHighlighting=o;this.initHighlightingOnLoad=l;this.IR="[a-zA-Z][a-zA-Z0-9_]*";this.UIR="[a-zA-Z_][a-zA-Z0-9_]*";this.NR="\\b\\d+(\\.\\d+)?";this.CNR="\\b(0[xX][a-fA-F0-9]+|(\\d+(\\.\\d*)?|\\.\\d+)([eE][-+]?\\d+)?)";this.BNR="\\b(0b[01]+)";this.RSR="!|!=|!==|%|%=|&|&&|&=|\\*|\\*=|\\+|\\+=|,|\\.|-|-=|/|/=|:|;|<|<<|<<=|<=|=|==|===|>|>=|>>|>>=|>>>|>>>=|\\?|\\[|\\{|\\(|\\^|\\^=|\\||\\|=|\\|\\||~";this.ER="(?![\\s\\S])";this.BE={b:"\\\\.",r:0};this.ASM={cN:"string",b:"'",e:"'",i:"\\n",c:[this.BE],r:0};this.QSM={cN:"string",b:'"',e:'"',i:"\\n",c:[this.BE],r:0};this.CLCM={cN:"comment",b:"//",e:"$"};this.CBLCLM={cN:"comment",b:"/\\*",e:"\\*/"};this.HCM={cN:"comment",b:"#",e:"$"};this.NM={cN:"number",b:this.NR,r:0};this.CNM={cN:"number",b:this.CNR,r:0};this.BNM={cN:"number",b:this.BNR,r:0};this.inherit=function(r,s){var p={};for(var q in r){p[q]=r[q]}if(s){for(var q in s){p[q]=s[q]}}return p}}();hljs.LANGUAGES.cpp=function(){var a={keyword:{"false":1,"int":1,"float":1,"while":1,"private":1,"char":1,"catch":1,"export":1,virtual:1,operator:2,sizeof:2,dynamic_cast:2,typedef:2,const_cast:2,"const":1,struct:1,"for":1,static_cast:2,union:1,namespace:1,unsigned:1,"long":1,"throw":1,"volatile":2,"static":1,"protected":1,bool:1,template:1,mutable:1,"if":1,"public":1,friend:2,"do":1,"return":1,"goto":1,auto:1,"void":2,"enum":1,"else":1,"break":1,"new":1,extern:1,using:1,"true":1,"class":1,asm:1,"case":1,typeid:1,"short":1,reinterpret_cast:2,"default":1,"double":1,register:1,explicit:1,signed:1,typename:1,"try":1,"this":1,"switch":1,"continue":1,wchar_t:1,inline:1,"delete":1,alignof:1,char16_t:1,char32_t:1,constexpr:1,decltype:1,noexcept:1,nullptr:1,static_assert:1,thread_local:1,restrict:1,_Bool:1,complex:1},built_in:{std:1,string:1,cin:1,cout:1,cerr:1,clog:1,stringstream:1,istringstream:1,ostringstream:1,auto_ptr:1,deque:1,list:1,queue:1,stack:1,vector:1,map:1,set:1,bitset:1,multiset:1,multimap:1,unordered_set:1,unordered_map:1,unordered_multiset:1,unordered_multimap:1,array:1,shared_ptr:1}};return{dM:{k:a,i:"</",c:[hljs.CLCM,hljs.CBLCLM,hljs.QSM,{cN:"string",b:"'\\\\?.",e:"'",i:"."},{cN:"number",b:"\\b(\\d+(\\.\\d*)?|\\.\\d+)(u|U|l|L|ul|UL|f|F)"},hljs.CNM,{cN:"preprocessor",b:"#",e:"$"},{cN:"stl_container",b:"\\b(deque|list|queue|stack|vector|map|set|bitset|multiset|multimap|unordered_map|unordered_set|unordered_multiset|unordered_multimap|array)\\s*<",e:">",k:a,r:10,c:["self"]}]}}}();hljs.LANGUAGES.r={dM:{c:[hljs.HCM,{cN:"number",b:"\\b0[xX][0-9a-fA-F]+[Li]?\\b",e:hljs.IMMEDIATE_RE,r:0},{cN:"number",b:"\\b\\d+(?:[eE][+\\-]?\\d*)?L\\b",e:hljs.IMMEDIATE_RE,r:0},{cN:"number",b:"\\b\\d+\\.(?!\\d)(?:i\\b)?",e:hljs.IMMEDIATE_RE,r:1},{cN:"number",b:"\\b\\d+(?:\\.\\d*)?(?:[eE][+\\-]?\\d*)?i?\\b",e:hljs.IMMEDIATE_RE,r:0},{cN:"number",b:"\\.\\d+(?:[eE][+\\-]?\\d*)?i?\\b",e:hljs.IMMEDIATE_RE,r:1},{cN:"keyword",b:"(?:tryCatch|library|setGeneric|setGroupGeneric)\\b",e:hljs.IMMEDIATE_RE,r:10},{cN:"keyword",b:"\\.\\.\\.",e:hljs.IMMEDIATE_RE,r:10},{cN:"keyword",b:"\\.\\.\\d+(?![\\w.])",e:hljs.IMMEDIATE_RE,r:10},{cN:"keyword",b:"\\b(?:function)",e:hljs.IMMEDIATE_RE,r:2},{cN:"keyword",b:"(?:if|in|break|next|repeat|else|for|return|switch|while|try|stop|warning|require|attach|detach|source|setMethod|setClass)\\b",e:hljs.IMMEDIATE_RE,r:1},{cN:"literal",b:"(?:NA|NA_integer_|NA_real_|NA_character_|NA_complex_)\\b",e:hljs.IMMEDIATE_RE,r:10},{cN:"literal",b:"(?:NULL|TRUE|FALSE|T|F|Inf|NaN)\\b",e:hljs.IMMEDIATE_RE,r:1},{cN:"identifier",b:"[a-zA-Z.][a-zA-Z0-9._]*\\b",e:hljs.IMMEDIATE_RE,r:0},{cN:"operator",b:"<\\-(?!\\s*\\d)",e:hljs.IMMEDIATE_RE,r:2},{cN:"operator",b:"\\->|<\\-",e:hljs.IMMEDIATE_RE,r:1},{cN:"operator",b:"%%|~",e:hljs.IMMEDIATE_RE},{cN:"operator",b:">=|<=|==|!=|\\|\\||&&|=|\\+|\\-|\\*|/|\\^|>|<|!|&|\\||\\$|:",e:hljs.IMMEDIATE_RE,r:0},{cN:"operator",b:"%",e:"%",i:"\\n",r:1},{cN:"identifier",b:"`",e:"`",r:0},{cN:"string",b:'"',e:'"',c:[hljs.BE],r:0},{cN:"string",b:"'",e:"'",c:[hljs.BE],r:0},{cN:"paren",b:"[[({\\])}]",e:hljs.IMMEDIATE_RE,r:0}]}};
+hljs.initHighlightingOnLoad();
+</script>
+
+
+<!-- MathJax scripts -->
+<script type="text/javascript" src="https://c328740.ssl.cf1.rackcdn.com/mathjax/2.0-latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+</script>
+
+
+
+</head>
+
+<body>
+<h1>The Wisdom of Crowds - Clustering Using Evidence Accumulation Clustering (EAC)</h1>
+
+<p>Todays blog post is about a problem known by most of the people using cluster algorithms on datasets without given true labels (unsupervised learning). The challenge here is the freedom of choice over a broad range of different cluster algorithms and how to determine the right parameter values.  The difficulty is the following: Every clustering algorithm and even any set of parameters will produce a somewhat different solution. This makes it hard to decide, which of the results should be kept. Because there is no reference when using clustering in an unsupervised fashion, the analyst has to decide whether the results describe some causal or artificial patterns. I will present a method, which tackles the described problem and is also very simple to apply. I think that this makes it really interesting for a lot of practical problems and time-bounded projects. Like for most of the data analytics problems, the rule <em><a href="http://khabaza.codimension.net/index_files/9laws.htm">There is No Free Lunch for the Data Miner</a></em> is still valid and hence also the limitations of the approach will be discussed.
+For exemplification I used three datasets: The first two are artificial datasets and their purpose is to demonstrate the benefits and the limitations from the presented method. This will be done by contrasting the results with those from classical methods. For this we use the datasets named Aggregation (1) and Spiral (2). You can download them from <a href="http://cs.joensuu.fi/sipu/datasets/">http://cs.joensuu.fi/sipu/datasets/</a> together with some information about the true number of partitions. The third dataset is about clustering the McDonalds menu and has more of a real world character. The partitions will consist of products featuring the same nutrition profile. You can find a different clustering with the same dataset at <a href="http://blog.echen.me/2012/03/20/infinite-mixture-models-with-nonparametric-bayes-and-the-dirichlet-process/">this blog post</a> from Edwin Chen, where also the <a href="https://github.com/echen/dirichlet-process">dataset</a> was originally from. At the end it would be interesting to compare our result with those presented by the mentioned blog.</p>
+
+<p>Our first step is to load all three datasets and to do some data preprocessing (standardizing the features and omitting all tuples containing NAs). The plots for dataset 1 and 2 show some typical shapes creating real challenges for most cluster algorithms.</p>
+
+<pre><code class="r">require(ggplot2)
+require(cluster)
+require(reshape)
+
+# Dataset 1 - Aggregation dataset (http://cs.joensuu.fi/sipu/datasets/)
+dataAggregatione &lt;- read.csv(&quot;DATA/Aggregation.txt&quot;, sep = &quot;\t&quot;, header = FALSE)
+dataAggregationeScaled &lt;- scale(dataAggregatione[, -3])  # normalize data
+dataAggregatione &lt;- data.frame(dataAggregationeScaled, 
+	name = as.character(c(1:nrow(dataAggregationeScaled))))
+rownames(dataAggregatione) &lt;- dataAggregatione$name
+ggplot(dataAggregatione, aes(V1, V2)) + geom_point()
+</code></pre>
+
+<p><img src="http://imageshack.us/a/img801/8053/eac11.png" width="100%" alt="Aggregation dataset"/></p>
+<pre><code class="r"># Dataset 2 - Spiral dataset (http://cs.joensuu.fi/sipu/datasets/)
+dataSpiral &lt;- read.csv(&quot;DATA/spiral.txt&quot;, sep = &quot;\t&quot;, header = FALSE)
+dataSpiralScaled &lt;- scale(dataSpiral[, -3])  # normalize data
+dataSpiral &lt;- data.frame(dataSpiralScaled, 
+	name = as.character(c(1:nrow(dataSpiralScaled))))
+rownames(dataSpiral) &lt;- dataSpiral$name
+ggplot(dataSpiral, aes(V1, V2)) + geom_point()
+</code></pre>
+
+<p><img src="http://imageshack.us/a/img855/4126/eac12.png" width="100%" alt="Spiral dataset"/></p>
+
+<pre><code class="r"># Dataset 3 - the mcdonalds menu
+# (https://github.com/echen/dirichlet-process)
+dataMC &lt;- read.csv(&quot;DATA/mcdonalds-normalized-data.tsv&quot;)
+dataMC$total_fat &lt;- as.numeric(dataMC$total_fat)
+numericAttr &lt;- c(&quot;total_fat&quot;, &quot;cholesterol&quot;, &quot;sodium&quot;, &quot;dietary_fiber&quot;, &quot;sugars&quot;, 
+    &quot;protein&quot;, &quot;vitamin_a_dv&quot;, &quot;vitamin_c_dv&quot;, &quot;calcium_dv&quot;, &quot;iron_dv&quot;, 
+	&quot;calories_from_fat&quot;, &quot;saturated_fat&quot;, &quot;trans_fat&quot;, &quot;carbohydrates&quot;)
+dataMC &lt;- na.omit(dataMC)  # drop NAs
+dataMCScaled &lt;- scale(dataMC[, -ncol(dataMC)])  # normalize data
+dataMC &lt;- data.frame(dataMCScaled, name = dataMC$name)
+</code></pre>
+
+<p>Now, lets start with the analytical part by describing a typical challenge occurring in clustering. Most of the algorithms require some parameter \( k \) which is used to determine the number of partitions produced by the clustering algorithm (e.g. <a href="http://en.wikipedia.org/wiki/K-means_clustering">k-means</a>, <a href="http://en.wikipedia.org/wiki/Spectral_clustering">spectral clustering</a>). But it is inherent in the nature of the problem, that k cannot be specified a priori. This is because in unsupervised clustering the true number of partitions is not known prior. An approach to coop with that problem could be to use some relative validation criteria. The logic behind this is the following: The user computes a score over partitions resulting from different parameterizations where the score expresses the quality of a partition. At the end, the partition with the highest score should be kept as final result (It depends on the meaning of the score if it should be minimized or maximized. But for simplicity I assume that every score could be expressed as such that a high value is associated with a high clustering quality). 
+The package <em>clusterCrit</em> contains most relevant cluster validity indices coming from a broad range of research literature (e.g. <a href="https://www.siam.org/proceedings/datamining/2009/dm09_067_vendraminl.pdf">On the Comparison of Relative Clustering Validity Criteria, Vendramin et al.</a>). In our first experiment I will use the <a href="http://en.wikipedia.org/wiki/Dunn_index">Dunn-Index</a>, the <a href="https://www.siam.org/proceedings/datamining/2009/dm09_067_vendraminl.pdf">Calinski-Harabasz-Index</a> and the popular <a href="http://en.wikipedia.org/wiki/Silhouette_(clustering">Silhouette measure</a>) together with the k-means algorithm on the two synthetic datasets. To account for the uncertainty about the right value of k, all possible values between 2 and 50 will be evaluated:</p>
+
+<pre><code class="r"># ------------------------------- 
+# Application of k-means
+# -------------------------------
+require(clusterCrit)
+
+# Aggregation dataset
+set.seed(1234)
+vals &lt;- matrix(rep(NA, 49 * 3), ncol = 3, dimnames = list(c(), 
+	c(&quot;Dunn&quot;, &quot;Calinski-Harabasz&quot;, &quot;Silhouette&quot;)))  # matrix to hold the score value
+for (k in 2:50) {
+    cl &lt;- kmeans(dataAggregatione[, c(1, 2)], k)
+    vals[(k - 1), 1] &lt;- as.numeric(intCriteria(
+		as.matrix(dataAggregatione[, c(1, 2)]), cl$cluster, &quot;Dunn&quot;))
+    vals[(k - 1), 2] &lt;- as.numeric(intCriteria(
+		as.matrix(dataAggregatione[, c(1, 2)]), cl$cluster, &quot;Calinski_Harabasz&quot;))
+    vals[(k - 1), 3] &lt;- as.numeric(intCriteria(
+		as.matrix(dataAggregatione[, c(1, 2)]), cl$cluster, &quot;Silhouette&quot;))
+}
+vals &lt;- data.frame(K = c(2:50), vals)
+choosen_k &lt;- matrix(c(vals[bestCriterion(vals[, 2], &quot;Dunn&quot;), &quot;K&quot;], 
+	vals[bestCriterion(vals[, 3], &quot;Calinski_Harabasz&quot;), &quot;K&quot;], 
+	vals[bestCriterion(vals[, 4], &quot;Silhouette&quot;), &quot;K&quot;]), 
+	ncol = 3, 
+	dimnames = list(c(&quot;Aggregation&quot;), c(&quot;Dunn&quot;, &quot;Calinski_Harabasz&quot;, &quot;Silhouette&quot;)))
+choosen_k
+</code></pre>
+
+<pre><code>##             Dunn Calinski_Harabasz Silhouette
+## Aggregation   46                45          4
+</code></pre>
+
+<pre><code class="r"># Spiral dataset
+set.seed(1234)
+vals &lt;- matrix(rep(NA, 49 * 3), ncol = 3, dimnames = list(c(), 
+	c(&quot;Dunn&quot;, &quot;Calinski-Harabasz&quot;, &quot;Silhouette&quot;)))
+for (k in 2:50) {
+    cl &lt;- kmeans(dataSpiral[, c(1, 2)], k)
+    vals[(k - 1), 1] &lt;- as.numeric(intCriteria(
+		as.matrix(dataSpiral[, c(1, 2)]), cl$cluster, &quot;Dunn&quot;))
+    vals[(k - 1), 2] &lt;- as.numeric(intCriteria(
+		as.matrix(dataSpiral[, c(1, 2)]), cl$cluster, &quot;Calinski_Harabasz&quot;))
+    vals[(k - 1), 3] &lt;- as.numeric(intCriteria(
+		as.matrix(dataSpiral[, c(1, 2)]), cl$cluster, &quot;Silhouette&quot;))
+}
+vals &lt;- data.frame(K = c(2:50), vals)
+choosen_k &lt;- matrix(c(vals[bestCriterion(vals[, 2], &quot;Dunn&quot;), &quot;K&quot;], 
+	vals[bestCriterion(vals[, 3], &quot;Calinski_Harabasz&quot;), &quot;K&quot;], 
+	vals[bestCriterion(vals[, 4], &quot;Silhouette&quot;), &quot;K&quot;]), 
+	ncol = 3, 
+	dimnames = list(c(&quot;Spiral&quot;), c(&quot;Dunn&quot;, &quot;Calinski_Harabasz&quot;, &quot;Silhouette&quot;)))
+choosen_k
+</code></pre>
+
+<pre><code>##        Dunn Calinski_Harabasz Silhouette
+## Spiral   34                50         37
+</code></pre>
+
+<p>Hence the first surprise is how distinct some of the validity scores are for both datasets. Even though the special structure of the data is challenging for the k-means algorithm, the results indicates that the choice of the right validation criteria is non-trivial, difficult and shows significant impact on the results. If we plot the resulting clustering for the best value obtained with the Silhouette score, the figures show that the approach failed for both datasets, even in picturing the coarse structure:</p>
+
+<pre><code class="r"># ------------------------------- 
+# Plot results
+# ------------------------------- 
+
+# Aggregation dataset
+kmeansResultsAggreation &lt;- kmeans(x = dataAggregatione[, c(1, 2)], centers = 3)$cluster
+dataAggregatione$clusterSimpleKmeans &lt;- as.character(kmeansResultsAggreation)
+ggplot(dataAggregatione, aes(V1, V2)) + geom_point(aes(colour = clusterSimpleKmeans)) +
+	opts(legend.position = &quot;none&quot;)
+</code></pre>
+
+<p><img src="http://imageshack.us/a/img203/3118/eac31.png" width="100%" alt="clustered Aggregation dataset (Silhouette)"/></p>
+
+<pre><code class="r"># Spiral dataset
+kmeansResultsSpiral &lt;- kmeans(x = dataSpiral[, c(1, 2)], centers = 37)$cluster
+dataSpiral$clusterSimpleKmeans &lt;- as.character(kmeansResultsSpiral)
+ggplot(dataSpiral, aes(V1, V2)) + geom_point(aes(colour = clusterSimpleKmeans)) + 
+    opts(legend.position = &quot;none&quot;)
+</code></pre>
+
+<p><img src="http://imageshack.us/a/img839/4117/eac32.png" width="100%" alt="clustered Spiral dataset (Silhouette)"/></p>
+
+<p>Now, let me introduce a method which overcomes the problem of choosing the right k value and which gives better result even when a simple clustering algorithm like k-means is used. It is called Evidence Accumulation Clustering and you can find some more deep information <a href="http://www.cs.msu.edu/prip/ResearchProjects/cluster_research/papers/AFred_AJain_ICPR2002.pdf">here</a> and <a href="http://web.cse.msu.edu/prip/Files/AFred_AJain_SSPR2002.pdf">here</a>. The notion behind this method is to build partitions with different algorithms and parameterizations and to aggregate all solutions into one final partition using every single partition as a voting if instances should be placed together. Hence if two venues will be placed together in most solutions, it is reasonable to assign them to the same cluster in the final partition. In this context, this method could also be understood as a tool to enhance the validity of the resulting partition by reducing the impact of a single non-optimal clustering. The algorithmic part is simple: The first part is about the creation of different partitions and aggregating the votes. For this we do two steps in each iteration: First, we cluster all data points with k-means using a randomly sampled value from a given interval for \( k \). Second, we note if two instances (\( i \) and \( j \)) are placed together inside of one cluster. In this case we increment the corresponding entry (\( A(i,j) \) and \( A(j,i) \)) in our so called association matrix \( A \) by 1. At the end of the first part we divide all entries by R, the number of iterations. In the second part the votes are aggregated through hierarchical clustering and we obtain our final partition by selecting an appropriate cutting point in the resulting dendogram. For this we transform the association matrix \( A \) from the first part into a distance matrix and feed it into a single linkage clustering. On the resulting dendogram we calculate the so called maximal cluster livetime. It is the longest gap between two successive merges. Using this as our cutting point we obtain a final partition. The code below is some technically simple draft of this algorithm (e.g. no parallelization):</p>
+
+<pre><code class="r"># ------------------------------- 
+# Evidence Accumulation Clustering
+# -------------------------------
+createCoAssocMatrix &lt;- function(Iter, rangeK, dataSet) {
+    nV &lt;- dim(dataSet)[1]
+    CoAssoc &lt;- matrix(rep(0, nV * nV), nrow = nV)
+
+    for (j in 1:Iter) {
+        jK &lt;- sample(c(rangeK[1]:rangeK[2]), 1, replace = FALSE)
+        jSpecCl &lt;- kmeans(x = dataSet, centers = jK)$cluster
+        CoAssoc_j &lt;- matrix(rep(0, nV * nV), nrow = nV)
+        for (i in unique(jSpecCl)) {
+            indVenues &lt;- which(jSpecCl == i)
+            CoAssoc_j[indVenues, indVenues] &lt;- CoAssoc_j[indVenues, indVenues] + 
+                (1/Iter)
+        }
+        CoAssoc &lt;- CoAssoc + CoAssoc_j
+    }
+    return(CoAssoc)
+}
+
+eac &lt;- function(Iter, rangeK, dataset, hcMethod = &quot;single&quot;) {
+    CoAssocSim &lt;- createCoAssocMatrix(Iter, rangeK, dataset)
+
+    CoAssocDist &lt;- 1 - CoAssocSim  # transform from similiarity into distance matrix
+    hclustM &lt;- hclust(as.dist(CoAssocDist), method = hcMethod)
+    cutValue &lt;- hclustM$height[which.max(diff(hclustM$height))]  # determine the cut
+    return(cutree(hclustM, h = cutValue))
+}
+</code></pre>
+
+<p>Now lets try this method on both artificial datasets using exactly the same set of possible values for k like in the first case above:</p>
+
+<pre><code class="r"># ------------------------------- 
+# Application of EAC
+# -------------------------------
+
+# # Aggregation dataset
+set.seed(1234)
+EACResults_Aggregatione &lt;- eac(Iter = 200, rangeK = c(2, 50), 
+	dataset = dataAggregatione[, c(1, 2)], hcMethod = &quot;single&quot;)
+table(EACResults_Aggregatione)
+</code></pre>
+
+<pre><code>## EACResults_Aggregatione
+##   1   2   3   4   5 
+## 170 307 232  45  34
+</code></pre>
+
+<pre><code class="r">dataAggregatione$clusterEAC &lt;- as.character(EACResults_Aggregatione)
+ggplot(dataAggregatione, aes(V1, V2)) + geom_point(aes(colour = clusterEAC)) +
+	opts(legend.position = &quot;none&quot;)
+</code></pre>
+
+<p><img src="http://imageshack.us/a/img541/5452/eac51.png" width="100%" alt="clustered Aggregation dataset (EAC)"/></p>
+
+<pre><code class="r"># Spiral dataset
+set.seed(1234)
+EACResults_Spiral &lt;- eac(Iter = 200, rangeK = c(2, 50), 
+	dataset = dataSpiral[, c(1, 2)], hcMethod = &quot;single&quot;)
+table(EACResults_Spiral)
+</code></pre>
+
+<pre><code>## EACResults_Spiral
+##   1   2   3 
+## 106 101 105
+</code></pre>
+
+<pre><code class="r">dataSpiral$clusterEAC &lt;- as.character(EACResults_Spiral)
+ggplot(dataSpiral, aes(V1, V2)) + geom_point(aes(colour = clusterEAC)) + 
+	opts(legend.position = &quot;none&quot;)
+</code></pre>
+
+<p><img src="http://imageshack.us/a/img545/8006/eac52.png" width="100%" alt="clustered Spiral dataset (EAC)"/></p>
+
+<p>The new results clearly show a real progress even when the algorithm slightly underestimates the true number of clusters for the Aggregation dataset (7). But as the discussion in the mentioned paper on EAC depicts, the algorithm has some problems with not so well separated clusters  nobody is perfect. The results using the Spiral dataset look flawless. All three clusters are identified even though we use a simple k-means algorithm with moderate overhead for building the EAC algorithm.
+Lets close this post with an application of the described method on the mentioned McDonalds dataset. The preprocessing of the data and the plotting is taken from the code published by Edwin Chen.</p>
+
+<pre><code class="r"># ------------------------------- 
+# Clustering the McDonalds menue
+# -------------------------------
+set.seed(1234)
+EACResults_MC &lt;- eac(Iter = 1000, rangeK = c(2, 50), 
+	dataset = dataMC[, numericAttr], 
+    hcMethod = &quot;single&quot;)
+table(EACResults_MC)
+</code></pre>
+
+<pre><code>## EACResults_MC
+##   1   2   3   4   5   6   7   8   9  10  11  12  13  14 
+##  19 126  39   2   9  15  16   1  21  20   4  27  18   8
+</code></pre>
+
+<pre><code class="r">dataMC$cluster &lt;- as.character(EACResults_MC)
+
+# the following code snippet is taken from
+# "http://blog.echen.me/2012/03/20/infinite-mixture-models-with-nonparametric
+# -bayes-and-the-dirichlet-process/"
+
+# ignore duplicate food items
+x = ddply(dataMC, .(name), function(df) head(df, 1))
+# for each cluster, take at most 5 items 
+# (to avoid the plot being dominated by large clusters)
+x = ddply(x, .(cluster), function(df) head(df, 5))
+# Reorder names by cluster 
+# (so we can get a plot where all points in a cluster are together)
+x$name = factor(x$name, levels = x$name[order(x$cluster)], ordered = T)
+# Turn this into a tall-thin matrix
+m = melt(x, id = c(&quot;name&quot;, &quot;cluster&quot;))
+
+m$name &lt;- paste(&quot;(&quot;, m$cluster, &quot;) &quot;, m$name, sep = &quot;&quot;)
+qplot(variable, weight = value, data = m, color = cluster, fill = cluster, 
+	geom = &quot;bar&quot;, width = 1, 
+	xlab = &quot;nutritional variable&quot;, ylab = &quot;z-scaled value&quot;, 
+	main = &quot;McDonald&#39;s food clusters&quot;) + 
+    facet_wrap(~name, ncol = 5) + coord_flip() + scale_colour_hue(&quot;cluster&quot;) + 
+    opts(axis.text.y = theme_text(size = 8), axis.text.x = theme_text(size = 8)) + 
+    scale_fill_hue(&quot;cluster&quot;)
+</code></pre>
+
+<p><a href="http://imageshack.us/a/img849/8729/eac6.png" title="click to enlarge"><img src="http://img689.imageshack.us/img689/4972/eac6small.png" width="35%" border="0"></a></p>
+
+<p>Here EAC gives us 14 partitions, 3 more than Edwin Chen found. In this example, it is more difficult to verify the solution. Hence our validation is more a qualitative one. The final plot shows five instances at maximum per partition together with their nutrition profiles. A first look at our results indicates that most of the clusters exhibit a good separation (except cluster 2 which includes some more heterogeneous items). I will not discuss every cluster in detail but here are some specific remarks:
+Cluster 3, 10, 12 and 14 show somehow similar profiles, nevertheless:</p>
+
+<ul>
+<li>cluster 12 (non-fat variants of coffee with syrup) is rich on carbohydrates and sugar</li>
+<li>cluster 10 (non-fat variants of coffee pure) has more protein and calcium</li>
+<li>cluster 3 is similar to cluster 12 but with less proteins and it contains more items with extreme profiles like apple dippers and </li>
+<li>cluster 14 - consisting of fruit smoothies with a lot of dietary fiber and proteins</li>
+</ul>
+
+<p>Maybe it would be more plausible to shift the apple dippers in cluster 8, which only contains the apple slices.</p>
+
+<p>So what could finally be said about the presented method? Although it has some limitations it poses an interesting and simple method, which gives much better results than single runs with an algorithm like k-means. The shown algorithm could be extended as well. One option could be to substitute the base method with a more sophisticated method. Another idea is to use a form of weighted aggregation of the partitions - mentioned <a href="http://ieeexplore.ieee.org/xpl/login.jsp?tp=&amp;arnumber=4145946&amp;url=http%3A%2F%2Fieeexplore.ieee.org%2Fiel5%2F4145898%2F4099323%2F04145946.pdf%3Farnumber%3D4145946">here</a>.</p>
+
+<p>Like always, any helpful comment or idea is welcome.</p>
+
+</body>
+</html>
+

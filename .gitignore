@@ -1,7 +1,7 @@
 # History files
 .Rhistory
 *.docx
-
 # Example code in package build process
 *-Ex.R
 .Rproj.user
+*.wbk
